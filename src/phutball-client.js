@@ -17,18 +17,9 @@ let whiteMoves = {}
 whiteMoves.targets = []   // only accessed if whiteMoving is true
 whiteMoves.jumped = []    // should be a 1:1 map of target array. or we're screwed.
 
-
 let mDiv = document.getElementById('message')
 let oneTurn = false       // Player 1's turn? IS FLIPPED IMMEDIATELY.
 switchTurns()             // This is simply to update the message
-
-// CLEANUP.
-global.jboard = jboard
-global.jsetup = jsetup
-global.array2d = array2d
-global.C = C
-
-setMsg("Player 1's turn. Click anywhere to place a unit.")
 
 jsetup.create('board', function(canvas) {
   jboard.setType(whiteCoord, JGO.WHITE)
@@ -141,7 +132,10 @@ jsetup.create('board', function(canvas) {
     if (onBoard(coord) === true) {
       let type = jboard.getType(coord)
 
-      if (type === JGO.CLEAR) {
+      if (!whiteMoving && type === JGO.CLEAR) {
+        selected = coord
+        select(coord)
+      } else if (whiteMoving && type === JGO.DIM_WHITE) {
         selected = coord
         select(coord)
       }

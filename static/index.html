@@ -16,19 +16,42 @@ canvas {
 }
 </style>
 
-<!-- <div class="ui text container">
-  <h1 class="ui dividing header">Philosopher's Football</h1>
-</div> -->
 <div class="ui text container">
-  <!-- <div class="ui segment"> -->
-    <div id="message" class="ui basic label"></div>
-    <div id="board"></div>
-  <!-- </div> -->
+  <h2 class="ui center aligned icon header">
+    <i class="lemon icon"></i>
+    <div class="content">
+      Philosopher's Football
+    </div>
+  </h2>
 </div>
+
+<div class="ui container">
+  <div class="ui internally grid">
+    <div class="center aligned nine wide column">
+      <h3 class="ui left aligned dividing header">Board</h3>
+      <div class="ui segment">
+        <div id="board"></div>
+      </div>
+      <div id="message" class="ui center aligned pointing above blue basic label"></div>
+    </div>
+    <div class="left aligned six wide column">
+      <h3 class="ui dividing header">Rules</h3>
+      <ul class="ui list">
+        <li>Board is 19x15</li>
+        <li>Goal is to get white stone over opponent's goal line</li>
+        <li>Players alternate turns</li>
+        <li>Placing a black stone counts as a turn</li>
+        <li>Moving the white stone counts as a turn</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="ui text container"></div>
 <!-- <div class="ui text container">
   <button id="restart-button" class="ui button">Restart Match</button>
-</div> -->
-
+</div>
+ -->
 <body>
 
 <link rel="stylesheet" type="text/css" href="semantic/components/header.css">
@@ -39,6 +62,7 @@ canvas {
 <link rel="stylesheet" type="text/css" href="semantic/components/button.css">
 <link rel="stylesheet" type="text/css" href="semantic/components/segment.css">
 <link rel="stylesheet" type="text/css" href="semantic/components/label.css">
+<link rel="stylesheet" type="text/css" href="semantic/components/icon.css">
 
 <script type="text/javascript" src="dist/jgoboard-latest.js"></script>
 <script type="text/javascript" src="medium/board.js"></script>
