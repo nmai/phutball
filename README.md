@@ -17,4 +17,4 @@ Rules and helpful tips are available in-game!
 
 ### Images:
 
-![phutball screenshot](/static/img/phutball-screenshot.png?raw=true)
+![phutball screenshot](/static/img/phutball-capture.png?raw=true)
