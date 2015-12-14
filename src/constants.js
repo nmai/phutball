@@ -22,5 +22,11 @@ module.exports = {
   target: {
     p1: (c) => { return c.j < 1  ? true : false },
     p2: (c) => { return c.j > 17 ? true : false }
+  },
+  msg: {
+    start: 'Click anywhere to place a black stone, or click on the white stone to move it.',
+    moving: 'Click any of the highlighted locations to move the white stone. Click elsewhere to cancel.<br><br><b>Note:</b> If a possible move exists above or below the board, you may click anywhere outside the top or bottom boundary to win the game.',
+    win1: 'Congratulations, <b>Player 1</b>! You win! Click anywhere on the board to restart.',
+    win2: 'Congratulations, <b>Player 2</b>! You win! Click anywhere on the board to restart.'
   }
 }

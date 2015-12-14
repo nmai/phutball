@@ -14,6 +14,9 @@ canvas {
   margin-left: auto;
   margin-right: auto;
 }
+#prompt2 {
+  display: none;
+}
 </style>
 
 <div class="ui text container">
@@ -32,7 +35,6 @@ canvas {
       <div class="ui segment">
         <div id="board"></div>
       </div>
-      <div id="message" class="ui center aligned pointing above blue basic label"></div>
     </div>
     <div class="left aligned six wide column">
       <h3 class="ui dividing header">Rules</h3>
@@ -43,11 +45,23 @@ canvas {
         <li>Placing a black stone counts as a turn</li>
         <li>Moving the white stone counts as a turn</li>
       </ul>
+
+      <h3 class="ui dividing header">Help</h3>
+      <div id="prompt1" class="ui orange segment">
+        <p><b>Player 1</b>, it is your turn!</p>
+        <p>Remember, your goal is to move the white stone to <b>Row 19</b> or above.</p>
+      </div>
+      <div id="prompt2" class="ui blue segment">
+        <p><b>Player 2</b>, it is your turn!</p>
+        <p>Remember, your goal is to move the white stone to <b>Row 1</b> or below.</p>
+      </div>
+
+      <div id="message" class="ui grey segment"></div>
     </div>
   </div>
 </div>
 
-<div class="ui text container"></div>
+<!-- <div class="ui text container"></div> -->
 <!-- <div class="ui text container">
   <button id="restart-button" class="ui button">Restart Match</button>
 </div>

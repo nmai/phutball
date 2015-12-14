@@ -2179,6 +2179,12 @@ module.exports = {
   target: {
     p1: (c) => { return c.j < 1  ? true : false },
     p2: (c) => { return c.j > 17 ? true : false }
+  },
+  msg: {
+    start: 'Click anywhere to place a black stone, or click on the white stone to move it.',
+    moving: 'Click any of the highlighted locations to move the white stone. Click elsewhere to cancel.<br><br><b>Note:</b> If a possible move exists above or below the board, you may click anywhere outside the top or bottom boundary to win the game.',
+    win1: 'Congratulations, <b>Player 1</b>! You win! Click anywhere on the board to restart.',
+    win2: 'Congratulations, <b>Player 2</b>! You win! Click anywhere on the board to restart.'
   }
 }
 
@@ -2204,130 +2210,147 @@ whiteMoves.targets = []   // only accessed if whiteMoving is true
 whiteMoves.jumped = []    // should be a 1:1 map of target array. or we're screwed.
 
 let mDiv = document.getElementById('message')
-let oneTurn = false       // Player 1's turn? IS FLIPPED IMMEDIATELY.
-switchTurns()             // This is simply to update the message
+let prompt1 = document.getElementById('prompt1')
+let prompt2 = document.getElementById('prompt2')
+let oneTurn = true
+updateMessage()
 
-jsetup.create('board', function(canvas) {
-  jboard.setType(whiteCoord, JGO.WHITE)
+// relies on all game options/vars to be already initialized
+function launchGame () {
+  jsetup.create('board', function(canvas) {
+    jboard.setType(whiteCoord, JGO.WHITE)
 
-  canvas.addListener('click', function(coord) {
-    // Prevent any actions if game is over.
-    if (gameOver) return
-
-    let type = jboard.getType(coord)
-    if (!whiteMoving) {
-      if (type === 0) {
-        placeBlack(coord)
-        switchTurns()
-      } else if (type === 2) {
-        // White unit clicked.
-        // Calculate possible moves, if any, and draw targets
-
-        let kim = calculateMoves(coord)
-        if (kim.length > 0) {
-          whiteMoving = true
-
-          for (let possible in kim) {
-            whiteMoves.targets.push( kim[possible].dest )
-            whiteMoves.jumped.push( kim[possible].jumped )
-          }
-
-          renderMoves()
-        }
+    canvas.addListener('click', function(coord) {
+      // Restart the game and wait for another click.
+      if (gameOver) {
+        restart()
+        return
       }
-    } else {
-      /* gamestate: white is about to make a move.
-       * 2 scenarios:
-       *  - click on invalid destination (cancel move)
-       *  - click on valid destination (move, switch turns)
-       */          
-      if (isValidMove(coord)) {
-        let relation = onBoard(coord)
 
-        if (relation === true) {
-          // It wasn't a winning position. Straightforward.
-          destroyJumped(coord)
-
-          clearMoves()
-
-          // Move the white stone
-          jboard.setType(whiteCoord, JGO.CLEAR)
-          whiteCoord = coord
-          jboard.setType(whiteCoord, JGO.WHITE)
-
-          whiteMoving = false
-        } else {
-          // We have a winner, and it's off the board.
-          // Now we need to calculate the nearest jump target.
-          let isP1t = C.target.p1(coord)
-          let tComp = isP1t ? C.target.p1 : C.target.p2
-          let possible = []
-          whiteMoves.targets.map((c) => {
-            if (tComp(coord) && tComp(c))
-              possible.push(c)
-          })
-          console.log(possible)
-          // Only 1 possible move? Simple.
-          if (possible.length === 1) {
-            destroyJumped(coord)
-          } else {
-            let lowestDist = void(0)
-            let closestCoord = possible[0]
-            possible.map((c) => {
-              if (lowestDist === void(0)) {
-                lowestDist = array2d.euclidean([], c.i, c.j, coord.i, coord.j)
-              } else {
-                let tempDist = array2d.euclidean([], c.i, c.j, coord.i, coord.j)
-                if (tempDist < lowestDist) {
-                  lowestDist = tempDist
-                  closestCoord = c
-                }
-              }
-            })
-            destroyJumped(closestCoord)
-          }
-
-          clearMoves()
-          jboard.setType(whiteCoord, JGO.CLEAR)
-          whiteCoord = JGO.Coordinate (-2, -2)
-          whiteMoving = false
-
-          gameOver = true
-        }
-
-        if (gameOver) {
-          if (C.target.p1(coord)) {
-            setMsg('Player 1 Wins!')
-          } else {
-            setMsg('Player 2 Wins!')
-          }
-        } else {
-          // Continue on with the game.
+      let type = jboard.getType(coord)
+      if (!whiteMoving) {
+        if (type === 0) {
+          placeBlack(coord)
           switchTurns()
+        } else if (type === 2) {
+          // White unit clicked.
+          // Calculate possible moves, if any, and draw targets
+
+          let kim = calculateMoves(coord)
+          if (kim.length > 0) {
+            whiteMoving = true
+            updateMessage()
+
+            for (let possible in kim) {
+              whiteMoves.targets.push( kim[possible].dest )
+              whiteMoves.jumped.push( kim[possible].jumped )
+            }
+
+            renderMoves()
+          }
         }
       } else {
-        whiteMoving = false
-        clearMoves()
-      }
-    }
-  })
+        /* gamestate: white is about to make a move.
+         * 2 scenarios:
+         *  - click on invalid destination (cancel move)
+         *  - click on valid destination (move, switch turns)
+         */          
+        if (isValidMove(coord)) {
+          let relation = onBoard(coord)
+          let isP1t = C.target.p1(coord), isP2t = C.target.p2(coord)
 
-  // For aesthetic and UX purposes. Selections have no effect on game logic.
-  canvas.addListener('mousemove', function(coord) {
-    unselect(selected)
-    if (onBoard(coord) === true) {
-      let type = jboard.getType(coord)
+          if (relation === true) {
+            if (isP1t || isP2t)
+              gameOver = true
+            
+            destroyJumped(coord)
 
-      if (!whiteMoving && type === JGO.CLEAR) {
-        selected = coord
-        select(coord)
-      } else if (whiteMoving && type === JGO.DIM_WHITE) {
-        selected = coord
-        select(coord)
+            clearMoves()
+
+            // Move the white stone
+            jboard.setType(whiteCoord, JGO.CLEAR)
+            whiteCoord = coord
+            jboard.setType(whiteCoord, JGO.WHITE)
+
+            whiteMoving = false
+            updateMessage()
+          } else {
+            // We have a winner, and it's off the board.
+            // Now we need to calculate the nearest jump target.
+            let tComp = isP1t ? C.target.p1 : C.target.p2
+            let possible = []
+            whiteMoves.targets.map((c) => {
+              if (tComp(coord) && tComp(c))
+                possible.push(c)
+            })
+
+            // Only 1 possible move? Simple.
+            if (possible.length === 1) {
+              destroyJumped(coord)
+            } else {
+              let lowestDist = void(0)
+              let closestCoord = possible[0]
+              possible.map((c) => {
+                if (lowestDist === void(0)) {
+                  lowestDist = array2d.euclidean([], c.i, c.j, coord.i, coord.j)
+                } else {
+                  let tempDist = array2d.euclidean([], c.i, c.j, coord.i, coord.j)
+                  if (tempDist < lowestDist) {
+                    lowestDist = tempDist
+                    closestCoord = c
+                  }
+                }
+              })
+              destroyJumped(closestCoord)
+            }
+
+            clearMoves()
+            jboard.setType(whiteCoord, JGO.CLEAR)
+            whiteCoord = JGO.Coordinate (-2, -2)
+            whiteMoving = false
+
+            gameOver = true
+          }
+
+          if (gameOver) {
+            if (C.target.p1(coord)) {
+              setMsg(C.msg.win1)
+            } else {
+              setMsg(C.msg.win2)
+            }
+            prompt1.style.display = 'none'
+            prompt2.style.display = 'none'
+          } else {
+          // Continue on with the game.
+          switchTurns()
+          }
+        } else {
+          whiteMoving = false
+          updateMessage()
+          clearMoves()
+        }
       }
-    }
+    })
+
+    // For aesthetic and UX purposes. Selections have no effect on game logic.
+    canvas.addListener('mousemove', function(coord) {
+      unselect(selected)
+      if (onBoard(coord) === true) {
+        let type = jboard.getType(coord)
+
+        if (!whiteMoving && type === JGO.CLEAR) {
+          selected = coord
+          select(coord)
+        } else if (whiteMoving && type === JGO.DIM_WHITE) {
+          selected = coord
+          select(coord)
+        }
+      }
+    })
   })
-})
+}
+
+launchGame()
 
 /* Pass in the matrix, coord, and direction.
  * returns an object containing the final destination,
@@ -2451,8 +2474,6 @@ function unselect (coord) {
 // moves. If found, will clear respective set.
 // NOTE: No optional support. Relies on whiteMoves. Come back to this.
 function destroyJumped (target) {
-  console.log(target)
-  console.log(whiteMoves)
   for (let c in whiteMoves.targets) {
     let coord = whiteMoves.targets[c]
     if (target.equals(coord)) {
@@ -2517,10 +2538,45 @@ function placeBlack (coord) {
 
 function switchTurns () {
   oneTurn = !oneTurn
-  let pNum = oneTurn ? 1 : 2
   whiteMoves.targets = []
   whiteMoves.jumped = []
-  setMsg('Player ' + pNum + "'s turn. Click anywhere to place a unit.")
+  updateMessage()
+}
+
+function updateMessage () {
+  if (gameOver) {
+    prompt1.style.display = 'none'
+    prompt2.style.display = 'none'
+  } else {
+    if (oneTurn) {
+      prompt1.style.display = 'block'
+      prompt2.style.display = 'none'
+    } else {
+      prompt1.style.display = 'none'
+      prompt2.style.display = 'block'
+    }
+    if (whiteMoving)
+      setMsg(C.msg.moving)
+    else
+      setMsg(C.msg.start)
+  }
+}
+
+// a bit messy
+function restart () {
+  jboard.clear()
+  selected = new JGO.Coordinate()
+
+  gameOver = false
+  whiteCoord = new JGO.Coordinate(7,9)
+  whiteMoving = false   // if white has been clicked but not placed
+  whiteMoves = {}
+  whiteMoves.targets = []   // only accessed if whiteMoving is true
+  whiteMoves.jumped = []    // should be a 1:1 map of target array. or we're screwed.
+  oneTurn = true
+
+  jboard.setType(whiteCoord, JGO.WHITE)
+  updateMessage()
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
