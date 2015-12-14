@@ -2177,8 +2177,8 @@ module.exports = {
     7: [ 1,  1]
   },
   target: {
-    p1: 'top',
-    p2: 'bottom'
+    p1: (c) => { return c.j < 1  ? true : false },
+    p2: (c) => { return c.j > 17 ? true : false }
   }
 }
 
@@ -2196,9 +2196,13 @@ let jboard = new JGO.Board(15, 19)
 let jsetup = new JGO.Setup(jboard, JGO.BOARD.mediumBW)
 let selected = new JGO.Coordinate()
 
+let gameOver = false
 let whiteCoord = new JGO.Coordinate(7,9)
 let whiteMoving = false   // if white has been clicked but not placed
-let whiteMoves = []       // only accessed if whiteMoving is true
+let whiteMoves = {}
+whiteMoves.targets = []   // only accessed if whiteMoving is true
+whiteMoves.jumped = []    // should be a 1:1 map of target array. or we're screwed.
+
 
 let mDiv = document.getElementById('message')
 let oneTurn = false       // Player 1's turn? IS FLIPPED IMMEDIATELY.
@@ -2216,6 +2220,9 @@ jsetup.create('board', function(canvas) {
   jboard.setType(whiteCoord, JGO.WHITE)
 
   canvas.addListener('click', function(coord) {
+    // Prevent any actions if game is over.
+    if (gameOver) return
+
     let type = jboard.getType(coord)
     if (!whiteMoving) {
       if (type === 0) {
@@ -2229,8 +2236,10 @@ jsetup.create('board', function(canvas) {
         if (kim.length > 0) {
           whiteMoving = true
 
-          for (let possible in kim)
-            whiteMoves.push( kim[possible].dest )
+          for (let possible in kim) {
+            whiteMoves.targets.push( kim[possible].dest )
+            whiteMoves.jumped.push( kim[possible].jumped )
+          }
 
           renderMoves()
         }
@@ -2242,9 +2251,20 @@ jsetup.create('board', function(canvas) {
        *  - click on valid destination (move, switch turns)
        */          
       if (isValidMove(coord)) {
-        console.log('valid move')
         let relation = onBoard(coord)
+
         if (relation === true) {
+          // Check to see if it was a winning position
+          if (C.target.p1(coord) || C.target.p2(coord)) {
+            gameOver = true
+
+            // Now we need to calculate the nearest jump target.
+
+          } else {
+            // It wasn't a winning position. Straightforward.
+            destroyJumped(coord)
+          }
+
           clearMoves()
 
           // Move the white stone
@@ -2253,18 +2273,25 @@ jsetup.create('board', function(canvas) {
           jboard.setType(whiteCoord, JGO.WHITE)
 
           whiteMoving = false
-          switchTurns()
-        } else if (relation !== false){
-          // We have a winner. Lock game state.
+        } else {
+          // We have a winner, and it's off the board.
           clearMoves()
           jboard.setType(whiteCoord, JGO.CLEAR)
           whiteCoord = JGO.Coordinate (-2, -2)
+          whiteMoving = false
 
-          if (relation === C.target.p1) {
+          gameOver = true
+        }
+
+        if (gameOver) {
+          if (C.target.p1(coord)) {
             setMsg('Player 1 Wins!')
           } else {
             setMsg('Player 2 Wins!')
           }
+        } else {
+          // Continue on with the game.
+          switchTurns()
         }
       } else {
         whiteMoving = false
@@ -2405,10 +2432,30 @@ function unselect (coord) {
   jboard.setMark(coord, JGO.MARK.NONE)
 }
 
+// Pass in the target coord. Will attempt to find it in current
+// moves. If found, will clear respective set.
+// NOTE: No optional support. Relies on whiteMoves. Come back to this.
+function destroyJumped (target) {
+  console.log(target)
+  console.log(whiteMoves)
+  for (let c in whiteMoves.targets) {
+    let coord = whiteMoves.targets[c]
+    if (target.equals(coord)) {
+      whiteMoves.jumped[c].map((intermediate) => {
+        jboard.setType(intermediate, JGO.CLEAR)
+      })
+      return
+    }
+  }
+
+  // was passed a bad target coord
+  throw new Error('Bad target coordinate')
+}
+
 // Used for highlighting possible moves. Coords optional.
 // Returns all moves that were rendered.
 function renderMoves (coords) {
-  let targets = coords ? coords : whiteMoves
+  let targets = coords ? coords : whiteMoves.targets
   let rendered = []
   targets.map((move) => {
     if (onBoard(move) === true) {
@@ -2421,19 +2468,20 @@ function renderMoves (coords) {
 
 // Un-highlights possible moves. Also clears coord array.
 function clearMoves (coords) {
-  let targets = coords ? coords : whiteMoves
+  let targets = coords ? coords : whiteMoves.targets
   targets.map((move) => {
     if (onBoard(move) === true) {
       jboard.setType(move, JGO.CLEAR)
     }
   })
-  targets = []
+  whiteMoves.targets = []
+  whiteMoves.jumped = []
 }
 
 // Checks if a coordinate is a valid move. Coords optional.
 // This one's tricky: returns true if TOP or BOTTOM matches too.
 function isValidMove (coord, coords) {
-  let targets = coords ? coords : whiteMoves
+  let targets = coords ? coords : whiteMoves.targets
   for(let c in targets) {
     let move = targets[c]
     if (coord.equals(move)) {
@@ -2455,7 +2503,8 @@ function placeBlack (coord) {
 function switchTurns () {
   oneTurn = !oneTurn
   let pNum = oneTurn ? 1 : 2
-  whiteMoves = []
+  whiteMoves.targets = []
+  whiteMoves.jumped = []
   setMsg('Player ' + pNum + "'s turn. Click anywhere to place a unit.")
 }
 

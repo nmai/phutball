@@ -20,7 +20,7 @@ module.exports = {
     7: [ 1,  1]
   },
   target: {
-    p1: 'top',
-    p2: 'bottom'
+    p1: (c) => { return c.j < 1  ? true : false },
+    p2: (c) => { return c.j > 17 ? true : false }
   }
 }
