@@ -14,6 +14,8 @@ app.use(express.static('./build'))
 // Host static assets (e.g. index.html, logo.png)
 app.use(express.static('./static'))
 
+app.use(express.static('./static/jgoboard'))
+
 app.listen(8080)
 
 console.log('Server started OK')

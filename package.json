@@ -15,7 +15,7 @@
     "pack": "browserify --fast=true -e=src/mithical --o=dist/bundle.js",
     "smartpack": "browserifyinc --cachefile=.browserify-cache src/phutball-client.js -v -o=build/bundle.js",
     "autostart": "npm run smartpack && node index.js",
-    "debug": "nodemon -i build/bundle.js -i babel/ -i .browserify-cache -x npm run autostart",
+    "debug": "nodemon -i build/bundle.js -i babel/ -i static/ -i .browserify-cache -x npm run autostart",
     "prepublish": "npm run compile"
   },
   "repository": {
