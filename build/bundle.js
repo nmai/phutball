@@ -2254,16 +2254,8 @@ jsetup.create('board', function(canvas) {
         let relation = onBoard(coord)
 
         if (relation === true) {
-          // Check to see if it was a winning position
-          if (C.target.p1(coord) || C.target.p2(coord)) {
-            gameOver = true
-
-            // Now we need to calculate the nearest jump target.
-
-          } else {
-            // It wasn't a winning position. Straightforward.
-            destroyJumped(coord)
-          }
+          // It wasn't a winning position. Straightforward.
+          destroyJumped(coord)
 
           clearMoves()
 
@@ -2275,6 +2267,35 @@ jsetup.create('board', function(canvas) {
           whiteMoving = false
         } else {
           // We have a winner, and it's off the board.
+          // Now we need to calculate the nearest jump target.
+          let isP1t = C.target.p1(coord)
+          let tComp = isP1t ? C.target.p1 : C.target.p2
+          let possible = []
+          whiteMoves.targets.map((c) => {
+            if (tComp(coord) && tComp(c))
+              possible.push(c)
+          })
+          console.log(possible)
+          // Only 1 possible move? Simple.
+          if (possible.length === 1) {
+            destroyJumped(coord)
+          } else {
+            let lowestDist = void(0)
+            let closestCoord = possible[0]
+            possible.map((c) => {
+              if (lowestDist === void(0)) {
+                lowestDist = array2d.euclidean([], c.i, c.j, coord.i, coord.j)
+              } else {
+                let tempDist = array2d.euclidean([], c.i, c.j, coord.i, coord.j)
+                if (tempDist < lowestDist) {
+                  lowestDist = tempDist
+                  closestCoord = c
+                }
+              }
+            })
+            destroyJumped(closestCoord)
+          }
+
           clearMoves()
           jboard.setType(whiteCoord, JGO.CLEAR)
           whiteCoord = JGO.Coordinate (-2, -2)
