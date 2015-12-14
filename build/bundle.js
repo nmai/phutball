@@ -1,205 +1,4 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-'use strict';
-
-module.exports = {
-  NORTHWEST: 0,
-  NORTH: 1,
-  NORTHEAST: 2,
-  WEST: 3,
-  EAST: 4,
-  SOUTHWEST: 5,
-  SOUTH: 6,
-  SOUTHEAST: 7,
-  trans: {
-    0: [-1, -1],
-    1: [-1, 0],
-    2: [-1, 1],
-    3: [0, -1],
-    4: [0, 1],
-    5: [1, -1],
-    6: [1, 0],
-    7: [1, -1]
-  }
-};
-},{}],2:[function(require,module,exports){
-(function (global){
-'use strict';
-
-var C = require('./constants');
-var array2d = require('array2d');
-
-// ignore, this is a quick hack to please ESLint
-var JGO = window.JGO;
-
-var jboard = new JGO.Board(15, 19);
-var jsetup = new JGO.Setup(jboard, JGO.BOARD.mediumBW);
-var selected = new JGO.Coordinate();
-var oneTurn = true; // is player 1's turn
-
-// CLEANUP.
-global.jboard = jboard;
-global.jsetup = jsetup;
-global.array2d = array2d;
-global.C = C;
-
-var mDiv = document.getElementById('message');
-
-setMsg("Player 1's turn. Click anywhere to place a unit.");
-
-jsetup.create('board', function (canvas) {
-  jboard.setType(new JGO.Coordinate(7, 9), JGO.WHITE);
-
-  canvas.addListener('click', function (coord) {
-    var type = jboard.getType(coord);
-    if (type === 0) {
-      placeBlack(coord);
-      switchTurns();
-    } else if (type === 2) {}
-    // white unit clicked
-    // calculate possible moves, if any, and draw targets
-
-    // we can ignore clicks on black stones
-  });
-
-  // For aesthetic and UX purposes. Selections have no effect on game logic.
-  canvas.addListener('mousemove', function (coord) {
-    unselect(selected);
-    if (onBoard(coord) === true) {
-      var type = jboard.getType(coord);
-
-      if (type === JGO.CLEAR) {
-        selected = coord;
-        select(coord);
-      }
-    }
-  });
-});
-
-/* Pass in the matrix, coord, and direction.
- * returns an object containing the final destination,
- * and an array of all intermediate coordinates.
- * 
- * For our purposes, we assume the given loc. is valid and it will
- * be included in the list of jumped locations.
- *
- * Returns false if there is no possible jump destination.
- */
-function jump(matrix, coord, dir) {
-  var foundMax = false;
-  var jumped = [];
-  var dest = [];
-  var cvec = [coord.i, coord.j];
-  while (!foundMax) {
-    // perform transformation operation
-    cvec = cvec.map(function (l, i) {
-      return l + C.trans[dir][i];
-    });
-    var relation = onBoard(new JGO.Coordinate(cvec[0], cvec[1]));
-
-    console.log(cvec);
-
-    if (relation !== false) {
-      // Check if empty spot. If so, save cvec and break loop.
-      dest = cvec;
-      if (relation === true) {
-        if (matrix[cvec[0]][cvec[1]] === 0) {
-          // Break loop without adding cvec to jumped.
-          foundMax = true;
-        } else {
-          // Add cvec to jumped and continue.
-          jumped.push(cvec);
-        }
-      } else {
-        // This is an off-board location (top or bottom).
-        // Will never evaluate as a left/right loc because we captured
-        // that case below.
-        foundMax = true;
-      }
-    } else {
-      // We hit a horiz. boundary. Can't move here.
-      return false;
-    }
-  }
-
-  return {
-    dest: new JGO.Coordinate(dest[0], dest[1]),
-    jumped: jumped.map(function (loc) {
-      return new JGO.Coordinate(loc[0], loc[1]);
-    })
-  };
-}
-
-// returns an array of coords representing possible moves from a given coord
-// returns empty array if no possible moves
-function calculateMoves(coord) {
-  // Convert the object representation to an array.
-  var stones = jboard.getRaw().stones;
-  var board = [];
-  for (var row in stones) {
-    var rowArr = [];
-    for (var col in stones[row]) {
-      rowArr.push(stones[row][col]);
-    }board.push(rowArr);
-  }
-
-  var neighbors = array2d.neighbors(board, coord.i, coord.j);
-  var moves = [];
-  for (var i = 0; i < neighbors.length; i++) {
-    if (neighbors[i] && neighbors[i] !== 0) {
-      var m = jump(board, coord, i);
-      if (m) moves.push(m);
-    }
-  }
-
-  return moves;
-}
-
-global.calculateMoves = calculateMoves;
-
-/* Checks if given coord is on the board.
- * return true if on board
- * return false if horizontal (we don't care)
- * return 'top' if immediately above board
- * return 'bottom' if immediately below board
- *
- * COMPARE STRICTLY or the 2 bottom cases will evaluate to true.
- * This code is relatively efficient but not particularly safe.
- */
-function onBoard(coord) {
-  if (coord.j >= 19) {
-    if (coord.j === 19) return 'bottom';else return false;
-  } else if (coord.j < 0) {
-    if (coord.j === -1) return 'top';else return false;
-  } else if (coord.i >= 15 || coord.i < 0) {
-    return false;
-  }
-
-  return true;
-}
-
-function setMsg(msg) {
-  mDiv.innerHTML = msg;
-}
-
-function select(coord) {
-  jboard.setMark(coord, JGO.MARK.SELECTED);
-}
-
-function unselect(coord) {
-  jboard.setMark(coord, JGO.MARK.NONE);
-}
-
-function placeBlack(coord) {
-  jboard.setType(coord, JGO.BLACK);
-}
-
-function switchTurns() {
-  oneTurn = !oneTurn;
-  var pNum = oneTurn ? 1 : 2;
-  setMsg('Player ' + pNum + "'s turn. Click anywhere to place a unit.");
-}
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./constants":1,"array2d":3}],3:[function(require,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"C:\\Users\\nick\\Desktop\\phutball\\node_modules\\array2d\\Array2D.js":[function(require,module,exports){
 // Array2D.js 0.0.5
 // Copyright (c) 2014 Matthew Trost
 // Array2D.js may be freely distributed under the MIT license.
@@ -2355,4 +2154,310 @@ function switchTurns() {
 
 }.call(this));
 
-},{}]},{},[2]);
+},{}],"C:\\Users\\nick\\Desktop\\phutball\\src\\constants.js":[function(require,module,exports){
+'use strict'
+
+module.exports = {
+  NORTHWEST: 0,
+  NORTH: 1,
+  NORTHEAST: 2,
+  WEST: 3,
+  EAST: 4,
+  SOUTHWEST: 5,
+  SOUTH: 6,
+  SOUTHEAST: 7,
+  trans: {
+    0: [-1, -1],
+    1: [-1,  0],
+    2: [-1,  1],
+    3: [ 0, -1],
+    4: [ 0,  1],
+    5: [ 1, -1],
+    6: [ 1,  0],
+    7: [ 1,  1]
+  },
+  target: {
+    p1: 'top',
+    p2: 'bottom'
+  }
+}
+
+},{}],"C:\\Users\\nick\\Desktop\\phutball\\src\\phutball-client.js":[function(require,module,exports){
+(function (global){
+'use strict'
+
+let C = require('./constants')
+let array2d = require('array2d')
+
+// ignore, this is a quick hack to please ESLint
+let JGO = window.JGO
+
+let jboard = new JGO.Board(15, 19)
+let jsetup = new JGO.Setup(jboard, JGO.BOARD.mediumBW)
+let selected = new JGO.Coordinate()
+
+let whiteCoord = new JGO.Coordinate(7,9)
+let whiteMoving = false   // if white has been clicked but not placed
+let whiteMoves = []       // only accessed if whiteMoving is true
+
+let mDiv = document.getElementById('message')
+let oneTurn = false       // Player 1's turn? IS FLIPPED IMMEDIATELY.
+switchTurns()             // This is simply to update the message
+
+// CLEANUP.
+global.jboard = jboard
+global.jsetup = jsetup
+global.array2d = array2d
+global.C = C
+
+setMsg("Player 1's turn. Click anywhere to place a unit.")
+
+jsetup.create('board', function(canvas) {
+  jboard.setType(whiteCoord, JGO.WHITE)
+
+  canvas.addListener('click', function(coord) {
+    let type = jboard.getType(coord)
+    if (!whiteMoving) {
+      if (type === 0) {
+        placeBlack(coord)
+        switchTurns()
+      } else if (type === 2) {
+        // White unit clicked.
+        // Calculate possible moves, if any, and draw targets
+
+        let kim = calculateMoves(coord)
+        if (kim.length > 0) {
+          whiteMoving = true
+
+          for (let possible in kim)
+            whiteMoves.push( kim[possible].dest )
+
+          renderMoves()
+        }
+      }
+    } else {
+      /* gamestate: white is about to make a move.
+       * 2 scenarios:
+       *  - click on invalid destination (cancel move)
+       *  - click on valid destination (move, switch turns)
+       */          
+      if (isValidMove(coord)) {
+        console.log('valid move')
+        let relation = onBoard(coord)
+        if (relation === true) {
+          clearMoves()
+
+          // Move the white stone
+          jboard.setType(whiteCoord, JGO.CLEAR)
+          whiteCoord = coord
+          jboard.setType(whiteCoord, JGO.WHITE)
+
+          whiteMoving = false
+          switchTurns()
+        } else if (relation !== false){
+          // We have a winner. Lock game state.
+          clearMoves()
+          jboard.setType(whiteCoord, JGO.CLEAR)
+          whiteCoord = JGO.Coordinate (-2, -2)
+
+          if (relation === C.target.p1) {
+            setMsg('Player 1 Wins!')
+          } else {
+            setMsg('Player 2 Wins!')
+          }
+        }
+      } else {
+        whiteMoving = false
+        clearMoves()
+      }
+    }
+  })
+
+  // For aesthetic and UX purposes. Selections have no effect on game logic.
+  canvas.addListener('mousemove', function(coord) {
+    unselect(selected)
+    if (onBoard(coord) === true) {
+      let type = jboard.getType(coord)
+
+      if (type === JGO.CLEAR) {
+        selected = coord
+        select(coord)
+      }
+    }
+  })
+})
+
+/* Pass in the matrix, coord, and direction.
+ * returns an object containing the final destination,
+ * and an array of all intermediate coordinates.
+ * 
+ * For our purposes, we assume the given loc. is valid and it will
+ * be included in the list of jumped locations.
+ *
+ * Returns false if there is no possible jump destination.
+ */
+function jump (matrix, coord, dir) {
+  let foundMax = false
+  let jumped = []
+  let dest = []
+  let cvec = [coord.i, coord.j]
+  while (!foundMax) {
+    // perform transformation operation
+    cvec = cvec.map((l, i) => { return l + C.trans[dir][i] })
+    let relation = onBoard(new JGO.Coordinate(cvec[0], cvec[1]))
+    
+    if (relation !== false) {
+      // Check if empty spot. If so, save cvec and break loop.
+      dest = cvec
+      if (relation === true) {
+        if (matrix[cvec[0]][cvec[1]] === 0) {
+          // Break loop without adding cvec to jumped.
+          foundMax = true
+        } else {
+          // Add cvec to jumped and continue.
+          jumped.push(cvec)
+        }
+      } else {
+        // This is an off-board location (top or bottom).
+        // Will never evaluate as a left/right loc because we captured
+        // that case below.
+        foundMax = true
+      }
+    } else {
+      // We hit a horiz. boundary. Can't move here.
+      return false
+    }
+  }
+  
+  return {
+    dest: new JGO.Coordinate(dest[0], dest[1]),
+    jumped: jumped.map((loc) => {
+      return new JGO.Coordinate(loc[0],loc[1])
+    })
+  }
+}
+
+// returns an array of coords representing possible moves from a given coord
+// returns empty array if no possible moves
+function calculateMoves (coord) {
+  // Convert the object representation to an array.
+  let stones = jboard.getRaw().stones
+  let board = []
+  for (let row in stones) {
+    let rowArr = []
+    for (let col in stones[row])
+      rowArr.push(stones[row][col])
+    board.push(rowArr)
+  }
+
+  let neighbors = array2d.neighbors(board, coord.i, coord.j)
+  let moves = []
+  for (let i = 0; i < neighbors.length; i++) {
+    if (neighbors[i] && neighbors[i] !== 0) {
+      let m = jump(board, coord, i)
+      if (m) 
+        moves.push(m)
+    }
+  }
+  
+  return moves
+}
+
+/* Checks if given coord is on the board.
+ * return true if on board
+ * return false if horizontal (we don't care)
+ * return 'top' if immediately above board
+ * return 'bottom' if immediately below board
+ *
+ * COMPARE STRICTLY or the 2 bottom cases will evaluate to true.
+ * This code is relatively efficient but not particularly safe.
+ */
+function onBoard (coord) {
+  if (coord.j >= 19) {
+    if (coord.j === 19)
+      return 'bottom'
+    else
+      return false
+  } else if (coord.j < 0) {
+    if (coord.j === -1)
+      return 'top'
+    else
+      return false
+  } else if (coord.i >= 15 || coord.i < 0) {
+    return false
+  }
+
+  return true
+}
+
+global.onBoard = onBoard
+
+function setMsg (msg) {
+  mDiv.innerHTML = msg
+}
+
+// Used for highlighting current selection (mouseover)
+function select (coord) {
+  jboard.setMark(coord, JGO.MARK.SELECTED)
+}
+
+function unselect (coord) {
+  jboard.setMark(coord, JGO.MARK.NONE)
+}
+
+// Used for highlighting possible moves. Coords optional.
+// Returns all moves that were rendered.
+function renderMoves (coords) {
+  let targets = coords ? coords : whiteMoves
+  let rendered = []
+  targets.map((move) => {
+    if (onBoard(move) === true) {
+      rendered.push(move)
+      jboard.setType(move, JGO.DIM_WHITE)
+    }
+  })
+  return rendered
+}
+
+// Un-highlights possible moves. Also clears coord array.
+function clearMoves (coords) {
+  let targets = coords ? coords : whiteMoves
+  targets.map((move) => {
+    if (onBoard(move) === true) {
+      jboard.setType(move, JGO.CLEAR)
+    }
+  })
+  targets = []
+}
+
+// Checks if a coordinate is a valid move. Coords optional.
+// This one's tricky: returns true if TOP or BOTTOM matches too.
+function isValidMove (coord, coords) {
+  let targets = coords ? coords : whiteMoves
+  for(let c in targets) {
+    let move = targets[c]
+    if (coord.equals(move)) {
+      return true
+    } else {
+      let relation = onBoard(move)
+      if (relation === 'bottom' || relation === 'top') {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function placeBlack (coord) {
+  jboard.setType(coord, JGO.BLACK)
+}
+
+function switchTurns () {
+  oneTurn = !oneTurn
+  let pNum = oneTurn ? 1 : 2
+  whiteMoves = []
+  setMsg('Player ' + pNum + "'s turn. Click anywhere to place a unit.")
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./constants":"C:\\Users\\nick\\Desktop\\phutball\\src\\constants.js","array2d":"C:\\Users\\nick\\Desktop\\phutball\\node_modules\\array2d\\Array2D.js"}]},{},["C:\\Users\\nick\\Desktop\\phutball\\src\\phutball-client.js"]);
